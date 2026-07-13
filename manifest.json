@@ -1,0 +1,39 @@
+{
+  "manifest_version": 3,
+  "name": "Website Archaeologist",
+  "version": "0.1.0",
+  "description": "Reverse engineers the architecture of any website by observing its runtime behavior via DevTools Protocol and DOM inspection — no backend required.",
+
+  "permissions": [
+    "debugger",
+    "storage",
+    "scripting",
+    "tabs",
+    "activeTab"
+  ],
+
+  "host_permissions": [
+    "<all_urls>"
+  ],
+
+  "background": {
+    "service_worker": "background/service-worker.js",
+    "type": "module"
+  },
+
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "Website Archaeologist",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
