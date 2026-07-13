@@ -140,3 +140,79 @@ chrome.tabs.onRemoved.addListener((tabId) => {
   scans.delete(tabId);
   disposeSession(tabId);
 });
+
+function mainWorldProbe() {
+  const out = {};
+
+  try {
+    // --- Framework globals -------------------------------------------------
+    if (window.__NEXT_DATA__)
+      out.nextData = {
+        buildId: window.__NEXT_DATA__.buildId ?? null,
+        page: window.__NEXT_DATA__.page ?? null,
+      };
+    if (window.__NUXT__) out.nuxtData = true;
+    if (window.__REACT_DEVTOOLS_GLOBAL_HOOK__) out.reactDevtoolsHook = true;
+    if (window.React && window.React.version)
+      out.reactGlobalVersion = window.React.version;
+    if (window.Vue && window.Vue.version)
+      out.vueGlobalVersion = window.Vue.version;
+    if (window.__VUE_DEVTOOLS_GLOBAL_HOOK__) out.vueDevtoolsHook = true;
+    if (window.ng || typeof window.getAllAngularRootElements === "function")
+      out.angularModern = true;
+    if (window.angular && window.angular.version)
+      out.angularJsVersion = window.angular.version.full;
+    if (window.jQuery && window.jQuery.fn && window.jQuery.fn.jquery)
+      out.jqueryVersion = window.jQuery.fn.jquery;
+    if (window.__APOLLO_STATE__ || window.__APOLLO_CLIENT__)
+      out.apolloGraphqlState = true;
+    if (window.__INITIAL_STATE__ || window.__PRELOADED_STATE__)
+      out.ssrInitialStateGlobal = true;
+    if (window.__REDUX_DEVTOOLS_EXTENSION__) out.reduxDevtoolsHook = true;
+    if (window.Shopify)
+      out.shopifyGlobal = {
+        checkoutHost: window.Shopify.checkout?.host ?? null,
+      };
+    if (window.wp) out.wordpressGlobal = true;
+
+    // --- Third-party integrations ------------------------------------------
+    if (window.dataLayer) out.gtmDataLayer = true;
+    if (typeof window.gtag === "function") out.gtagPresent = true;
+    if (typeof window.ga === "function") out.gaPresent = true;
+    if (window.Stripe) out.stripeGlobal = true;
+    if (window.grecaptcha) out.recaptchaGlobal = true;
+    if (window.Sentry) out.sentryGlobal = true;
+    if (window.Intercom) out.intercomGlobal = true;
+    if (window.Segment || window.analytics) out.segmentGlobal = true;
+
+    // --- Fiber / Vue instance markers on likely root elements --------------
+    const rootCandidates = ["#root", "#app", "#__next", "#__nuxt", "body"]
+      .map((sel) => document.querySelector(sel))
+      .filter(Boolean);
+
+    const fiberKeyRe = /^__reactFiber\$|^__reactContainer\$|^__reactProps\$/;
+    const foundFiber =
+      rootCandidates.some((el) =>
+        Object.keys(el).some((k) => fiberKeyRe.test(k)),
+      ) || !!document.querySelector("[data-reactroot]");
+    if (foundFiber) out.reactFiberMarkerFound = true;
+
+    const foundVueInstance = rootCandidates.some(
+      (el) => "__vue__" in el || "__vue_app__" in el,
+    );
+    if (foundVueInstance) out.vueInstanceMarkerFound = true;
+  } catch (err) {
+    out.probeError = String(err && err.message ? err.message : err);
+  }
+
+  return out;
+}
+
+/** Flattens the mainWorldProbe() result object into evidence records. */
+function mainWorldResultToRecords(result) {
+  return Object.entries(result ?? {}).map(([signal, value]) => ({
+    source: "globals",
+    signal,
+    value,
+  }));
+}
