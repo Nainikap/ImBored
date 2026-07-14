@@ -123,12 +123,14 @@
     if (
       document.querySelector("[class*='data=v='], [data-v-]") ||
       Array.from(
-        document.querySelectorAll("*").slice(0, 500),
-        some((el) => {
-          Array.from(el.attributes || []).some((a) =>
-            a.name.startsWith("data-v-"),
-          );
-        }),
+        document
+          .querySelectorAll("*")
+          .slice(0, 500)
+          .some((el) => {
+            Array.from(el.attributes || []).some((a) =>
+              a.name.startsWith("data-v-"),
+            );
+          }),
       )
     ) {
       record("dom", "vue-scoped-style-attr", true);
@@ -227,6 +229,13 @@
   observer.observe(document.documentElement, {
     childList: true,
     subtree: true,
+  });
+
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message?.type === "STOP_OBSERVING") {
+      observer.disconnect();
+      sendResponse({ ok: true });
+    }
   });
 
   setTimeout(() => observer.disconnect(), 15000);
