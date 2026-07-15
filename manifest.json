@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Website Archaeologist",
+  "name": "Chrome Digger",
   "version": "0.1.0",
   "description": "Reverse engineers the architecture of any website by observing its runtime behavior via DevTools Protocol and DOM inspection — no backend required.",
 
@@ -17,13 +17,13 @@
   ],
 
   "background": {
-    "service_worker": "background/service-worker.js",
+    "service_worker": "background/service_worker.js",
     "type": "module"
   },
 
   "action": {
     "default_popup": "popup/popup.html",
-    "default_title": "Website Archaeologist",
+    "default_title": "Chrome Digger",
     "default_icon": {
       "16": "icons/icon16.png",
       "48": "icons/icon48.png",

@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Website Archaeologist — Report</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+  rel="stylesheet"
+/>
+<style>
+  :root {
+    --bg: #16130f;
+    --bg-panel: #1c1811;
+    --bg-panel-raised: #241f17;
+    --border: #382f22;
+    --border-soft: #2a2419;
+    --text-primary: #ece4d3;
+    --text-secondary: #a99c86;
+    --text-muted: #756b5a;
+    --accent-verdigris: #6fa88f;
+    --accent-brass: #c9974c;
+    --accent-rust: #8b4a32;
+    --danger: #b5533c;
+    --font-display: "Fraunces", serif;
+    --font-body: "IBM Plex Sans", sans-serif;
+    --font-mono: "IBM Plex Mono", monospace;
+    --radius: 6px;
+    --nav-width: 84px;
+  }
+
+  * { box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    * { animation: none !important; transition: none !important; }
+  }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    line-height: 1.5;
+  }
+
+  a { color: inherit; }
+  :focus-visible { outline: 2px solid var(--accent-verdigris); outline-offset: 2px; }
+
+  /* ---- Core-sample nav: the signature element. A vertical strip of
+     labeled bands, like a geological core sample, one band per report
+     section — deeper sections sit lower, echoing "digging deeper." ---- */
+  .core-nav {
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    width: var(--nav-width);
+    background: var(--bg-panel);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    z-index: 10;
+  }
+  .core-band {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-bottom: 1px solid var(--border-soft);
+    text-decoration: none;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    transition: color 0.2s, background-color 0.2s;
+    position: relative;
+  }
+  .core-band:last-child { border-bottom: none; }
+  .core-band:hover, .core-band.active { color: var(--text-primary); background: var(--bg-panel-raised); }
+  .core-band.active::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: var(--accent-brass);
+  }
+
+  main {
+    margin-left: var(--nav-width);
+    max-width: 880px;
+    padding: 48px 40px 120px;
+  }
+
+  .report-header {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+    padding-bottom: 32px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .mark { flex-shrink: 0; width: 40px; height: 40px; color: var(--accent-brass); margin-top: 4px; }
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin: 0 0 6px;
+  }
+  h1#site-url {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 26px;
+    margin: 0;
+    color: var(--text-primary);
+    word-break: break-word;
+  }
+  .headline { font-size: 15px; color: var(--text-secondary); margin: 10px 0 0; max-width: 60ch; }
+  .scan-meta { font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); margin: 14px 0 0; }
+
+  .panel { margin-top: 56px; padding-top: 28px; border-top: 1px solid var(--border-soft); scroll-margin-top: 24px; }
+  .panel h2 { font-family: var(--font-display); font-weight: 600; font-size: 19px; margin: 0 0 18px; color: var(--text-primary); }
+
+  .empty-state { color: var(--text-muted); font-size: 13px; font-style: italic; padding: 8px 0; }
+
+  /* Overview */
+  .stat-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+  .stat-chip {
+    padding: 6px 12px;
+    background: var(--bg-panel-raised);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+  .stat-chip strong { color: var(--accent-verdigris); font-weight: 600; }
+
+  .toppick-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+  .toppick-card { background: var(--bg-panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; }
+  .toppick-card .cat { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); }
+  .toppick-card .name { font-size: 14px; font-weight: 500; margin-top: 4px; }
+  .toppick-card .conf { font-family: var(--font-mono); font-size: 12px; color: var(--accent-brass); margin-top: 2px; }
+
+  /* Tech stack */
+  .tech-card { background: var(--bg-panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; margin-bottom: 16px; }
+  .tech-card h3 { font-family: var(--font-mono); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin: 0 0 12px; }
+  .tech-row { padding: 10px 0; border-bottom: 1px solid var(--border-soft); }
+  .tech-row:last-child { border-bottom: none; }
+  .tech-row-main { display: flex; align-items: center; gap: 12px; }
+  .tech-name { font-size: 14px; font-weight: 500; flex: 1; min-width: 0; }
+  .confidence-bar { width: 120px; height: 6px; background: var(--bg-panel-raised); border-radius: 3px; overflow: hidden; flex-shrink: 0; }
+  .confidence-fill { height: 100%; background: linear-gradient(90deg, var(--accent-verdigris), var(--accent-brass)); }
+  .confidence-pct { font-family: var(--font-mono); font-size: 12px; color: var(--text-secondary); width: 38px; text-align: right; flex-shrink: 0; }
+
+  .tech-row details { margin-top: 8px; }
+  .tech-row summary { cursor: pointer; font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); }
+  .tech-row summary:hover { color: var(--accent-verdigris); }
+  .evidence-list { list-style: none; margin: 8px 0 0; padding: 0 0 0 14px; border-left: 2px solid var(--border-soft); }
+  .evidence-list li { font-family: var(--font-mono); font-size: 11px; color: var(--text-secondary); margin-bottom: 6px; }
+  .evidence-list .weight { color: var(--accent-brass); }
+  .evidence-list .raw { color: var(--text-muted); display: block; margin-top: 2px; }
+
+  /* Dependency graph */
+  .graph-wrap { background: var(--bg-panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; overflow-x: auto; }
+  .graph-wrap svg text { font-family: var(--font-mono); }
+
+  /* Request flow */
+  .flow-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+  .flow-host { font-family: var(--font-mono); font-size: 12px; width: 220px; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .flow-host .tag { font-size: 10px; color: var(--text-muted); display: block; }
+  .flow-bar-track { flex: 1; height: 10px; background: var(--bg-panel-raised); border-radius: 4px; overflow: hidden; }
+  .flow-bar-fill { height: 100%; }
+  .flow-bar-fill.same-origin { background: var(--accent-verdigris); }
+  .flow-bar-fill.third-party { background: var(--accent-rust); }
+  .flow-count { font-family: var(--font-mono); font-size: 12px; color: var(--text-secondary); width: 34px; text-align: right; flex-shrink: 0; }
+
+  /* Auth flow */
+  .auth-step { border-left: 2px solid var(--accent-verdigris); padding-left: 16px; margin-bottom: 22px; position: relative; }
+  .auth-step::before { content: ""; position: absolute; left: -5px; top: 4px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent-verdigris); }
+  .auth-step .mechanism { font-size: 15px; font-weight: 600; }
+  .auth-step .meta { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .auth-step ul { margin: 8px 0 0; padding-left: 16px; }
+  .auth-step li { font-size: 13px; color: var(--text-secondary); margin-bottom: 3px; }
+
+  /* API map */
+  .api-map-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+  .api-column { background: var(--bg-panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
+  .api-column h3 { font-family: var(--font-mono); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin: 0 0 10px; }
+  .api-endpoint { font-family: var(--font-mono); font-size: 11.5px; color: var(--text-secondary); padding: 5px 0; border-bottom: 1px solid var(--border-soft); word-break: break-all; }
+  .api-endpoint:last-child { border-bottom: none; }
+  .api-endpoint .method { color: var(--accent-brass); margin-right: 6px; }
+  .api-endpoint .count { color: var(--text-muted); }
+
+  /* Raw evidence */
+  .text-input {
+    width: 100%;
+    padding: 9px 12px;
+    background: var(--bg-panel-raised);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    margin-bottom: 18px;
+  }
+  .text-input::placeholder { color: var(--text-muted); }
+  .evidence-group { margin-bottom: 10px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: var(--radius); }
+  .evidence-group summary { cursor: pointer; padding: 10px 14px; font-family: var(--font-mono); font-size: 12px; color: var(--text-secondary); list-style: none; display: flex; justify-content: space-between; }
+  .evidence-group summary::-webkit-details-marker { display: none; }
+  .evidence-group summary .count { color: var(--text-muted); }
+  .evidence-table { border-top: 1px solid var(--border-soft); }
+  .evidence-table-row { display: grid; grid-template-columns: 160px 1fr 90px; gap: 10px; padding: 6px 14px; font-family: var(--font-mono); font-size: 11px; color: var(--text-secondary); border-bottom: 1px solid var(--border-soft); }
+  .evidence-table-row:last-child { border-bottom: none; }
+  .evidence-table-row .signal { color: var(--text-primary); }
+  .evidence-table-row .value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .evidence-table-row .time { color: var(--text-muted); text-align: right; }
+  .evidence-table-row.hidden-by-filter { display: none; }
+
+  .fatal-error {
+    max-width: 560px;
+    margin: 15vh auto;
+    padding: 32px;
+    text-align: center;
+    font-family: var(--font-body);
+  }
+  .fatal-error h1 { font-family: var(--font-display); font-size: 22px; margin-bottom: 12px; }
+  .fatal-error p { color: var(--text-secondary); font-size: 14px; }
+
+  @media (max-width: 720px) {
+    .core-nav { position: static; width: 100%; height: 44px; flex-direction: row; border-right: none; border-bottom: 1px solid var(--border); overflow-x: auto; }
+    .core-band { writing-mode: horizontal-tb; transform: none; padding: 0 14px; border-bottom: none; border-right: 1px solid var(--border-soft); flex: none; }
+    .core-band.active::before { left: 0; right: 0; top: auto; bottom: 0; width: auto; height: 3px; }
+    main { margin-left: 0; padding: 32px 20px 80px; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="core-nav" id="core-nav" aria-label="Report sections">
+  <a class="core-band" data-target="overview" href="#overview"><span>Overview</span></a>
+  <a class="core-band" data-target="tech-stack" href="#tech-stack"><span>Tech Stack</span></a>
+  <a class="core-band" data-target="dependency-graph" href="#dependency-graph"><span>Dependencies</span></a>
+  <a class="core-band" data-target="request-flow" href="#request-flow"><span>Request Flow</span></a>
+  <a class="core-band" data-target="auth-flow" href="#auth-flow"><span>Auth Flow</span></a>
+  <a class="core-band" data-target="api-map" href="#api-map"><span>API Map</span></a>
+  <a class="core-band" data-target="raw-evidence" href="#raw-evidence"><span>Raw Evidence</span></a>
+</nav>
+
+<main id="report-root" hidden>
+  <header class="report-header">
+    <svg class="mark" viewBox="0 0 40 40" fill="none" aria-hidden="true">
+      <circle cx="20" cy="20" r="18" stroke="currentColor" stroke-width="1.4" opacity="0.5" />
+      <circle cx="20" cy="20" r="12" stroke="currentColor" stroke-width="1.4" opacity="0.75" />
+      <circle cx="20" cy="20" r="6" stroke="currentColor" stroke-width="1.4" />
+      <circle cx="20" cy="20" r="1.6" fill="currentColor" />
+    </svg>
+    <div>
+      <p class="eyebrow">Website Archaeologist — Excavation Report</p>
+      <h1 id="site-url">—</h1>
+      <p id="headline" class="headline">—</p>
+      <p id="scan-meta" class="scan-meta">—</p>
+    </div>
+  </header>
+
+  <section id="overview" class="panel">
+    <h2>Overview</h2>
+    <div id="overview-body"></div>
+  </section>
+
+  <section id="tech-stack" class="panel">
+    <h2>Tech Stack</h2>
+    <div id="tech-stack-body"></div>
+  </section>
+
+  <section id="dependency-graph" class="panel">
+    <h2>Dependency Graph</h2>
+    <div id="dependency-graph-body"></div>
+  </section>
+
+  <section id="request-flow" class="panel">
+    <h2>Request Flow</h2>
+    <div id="request-flow-body"></div>
+  </section>
+
+  <section id="auth-flow" class="panel">
+    <h2>Auth Flow</h2>
+    <div id="auth-flow-body"></div>
+  </section>
+
+  <section id="api-map" class="panel">
+    <h2>API Map</h2>
+    <div id="api-map-body"></div>
+  </section>
+
+  <section id="raw-evidence" class="panel">
+    <h2>Raw Evidence</h2>
+    <input id="evidence-filter" type="text" class="text-input" placeholder="Filter by source, signal, or value…" />
+    <div id="raw-evidence-body"></div>
+  </section>
+</main>
+
+<div id="fatal-error" class="fatal-error" hidden>
+  <h1>No report to show</h1>
+  <p id="fatal-error-message">—</p>
+</div>
+
+<script type="module" src="report.js"></script>
+</body>
+</html>
