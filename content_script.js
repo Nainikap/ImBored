@@ -203,22 +203,24 @@
   );
   const observer = new MutationObserver((mutations) => {
     const late = [];
-    for (const mutation in mutations) {
-      mutation.addedNotes.forEach((node) => {
-        if (node.nodeType !== Node.ELEMENT_NODE) return;
-        const el = node;
-        if (el.tagName === "SCRIPT" && el.getAttribute("src")) {
-          const src = el.getAttribute("src");
-          if (!seenScriptSrcs.has(src)) {
-            seenScriptSrcs.add(src);
-            late.push({
-              source: "scripts",
-              signal: "script-src-late",
-              value: src,
-            });
+    if (mutations.length !== 0) {
+      for (const mutation of mutations) {
+        mutation.addedNodes.forEach((node) => {
+          if (node.nodeType !== Node.ELEMENT_NODE) return;
+          const el = node;
+          if (el.tagName === "SCRIPT" && el.getAttribute("src")) {
+            const src = el.getAttribute("src");
+            if (!seenScriptSrcs.has(src)) {
+              seenScriptSrcs.add(src);
+              late.push({
+                source: "scripts",
+                signal: "script-src-late",
+                value: src,
+              });
+            }
           }
-        }
-      });
+        });
+      }
     }
     flush(late);
   });
