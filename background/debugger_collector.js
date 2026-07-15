@@ -20,7 +20,7 @@ function getOrCreateSession(tabId) {
       evidence: [],
       pendingRequests: new Map(),
     };
-    session.set(tabId, session);
+    sessions.set(tabId, session);
   }
   return session;
 }
@@ -30,7 +30,7 @@ function pushEvidence(tabId, source, signal, value) {
   session.evidence.push({ source, signal, value, timestamp: Date.now() });
 }
 
-function sendComman(tabId, method, params = {}) {
+function sendCommand(tabId, method, params = {}) {
   return new Promise((resolve, reject) => {
     chrome.debugger.sendCommand({ tabId }, method, params, (result) => {
       if (chrome.runtime.lastError) {
@@ -61,9 +61,11 @@ export async function attachDebugger(tabId) {
   await sendCommand(tabId, "Network.enable", {});
   await sendCommand(tabId, "Page.enable", {});
   await sendCommand(tabId, "Performance.enable", {});
+  await sendCommand(tabId, "DOM.enable", {});
+  // await sendCommand(tabId, "Runtime.enable", {});
 }
 
-export async function detatchDebugger(tabId) {
+export async function detachDebugger(tabId) {
   const session = sessions.get(tabId);
   if (!session || !session.attached) return;
 
@@ -100,6 +102,11 @@ export function disposeSession(tabId) {
 }
 
 function handleDebugger(source, method, params) {
+  chrome.debugger.onEvent.addListener((source, method, params) => {
+    if (method.startsWith("Network")) {
+      console.log(method);
+    }
+  });
   const tabId = source.tabId;
   if (tabId == undefined || !sessions.has(tabId)) return;
 

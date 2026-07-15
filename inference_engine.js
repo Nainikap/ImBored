@@ -9,7 +9,6 @@
 // combining weak/partial signals on purpose, per the project's premise.
 
 //rules
-import { RULES } from "./rules";
 
 //helper functions
 export function bySignal(evidence, signal) {

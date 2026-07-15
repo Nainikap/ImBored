@@ -72,7 +72,8 @@ function promisifyTransaction(tx) {
 }
 
 export async function createScan(tabId, url) {
-  const db = openDatabase();
+  const db = await openDatabase();
+  console.log(db);
   const tx = db.transaction(SCANS_STORE, "readwrite");
   const store = tx.objectStore(SCANS_STORE);
 
@@ -103,6 +104,15 @@ export async function updateScan(scanId, patch) {
 
   store.put({ ...existing, ...patch });
   await promisifyTransaction(tx);
+}
+
+export async function getScanById(scanId) {
+  const db = await openDatabase();
+  const tx = db.transaction(SCANS_STORE, "readonly");
+  const store = tx.objectStore(SCANS_STORE);
+  const result = await promisifyRequest(store.get(scanId));
+  await promisifyTransaction(tx);
+  return result ?? null;
 }
 
 export async function getLatestScanForTab(tabId) {
@@ -175,7 +185,7 @@ export async function addEvidenceBatch(scanId, records) {
 export async function getEvidenceByScanId(scanId) {
   const db = await openDatabase();
   const tx = db.transaction(EVIDENCE_STORE, "readonly");
-  const store = tx.objectStore(EVIDENCE_STORE).index("byScanId");
+  const index = tx.objectStore(EVIDENCE_STORE).index("byScanId");
 
   const result = await promisifyRequest(index.getAll(IDBKeyRange.only(scanId)));
   await promisifyTransaction(tx);
@@ -197,7 +207,7 @@ export async function finalizeScanWithEvidence(scanId, records) {
 }
 
 export async function clearAll() {
-  const db = openDatabase();
+  const db = await openDatabase();
   const tx = db.transaction([SCANS_STORE, EVIDENCE_STORE], "readwrite");
   tx.objectStore(SCANS_STORE).clear();
   tx.objectStore(EVIDENCE_STORE).clear();

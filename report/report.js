@@ -12,7 +12,7 @@
 // `scripting` permissions, so a stored-XSS bug in its own report page would
 // be a meaningfully worse outcome than the same bug in an ordinary webpage.
 
-import { buildReport } from "../report-builder.js";
+import { buildReport } from "../report_builder.js";
 
 // ---------------------------------------------------------------------------
 // Tiny safe DOM builders
@@ -628,8 +628,13 @@ function showFatalError(message) {
 async function main() {
   const params = new URLSearchParams(location.search);
   const tabId = Number(params.get("tabId"));
+  console.log("href", location.href);
+  console.log("search", location.search);
+  console.log("params tabid", params.get("tabId"));
+  console.log("tabid", tabId);
 
   if (!tabId) {
+    console.log("i was here");
     showFatalError(
       "No tab was specified. Open this report from the extension popup after running a scan.",
     );
@@ -642,6 +647,7 @@ async function main() {
       type: "GET_EVIDENCE",
       tabId,
     });
+    console.log("response", response);
   } catch (err) {
     showFatalError(
       `Could not reach the extension background service: ${err?.message ?? err}`,

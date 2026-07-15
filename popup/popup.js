@@ -3,7 +3,7 @@
 // Drives the popup UI: resolves the active tab, starts/stops a scan via
 // messages to the service worker, polls status while a scan is running,
 // and opens report.html when one is available.
-
+console.log("i was here");
 const DOM = {
   tabUrl: document.getElementById("tab-url"),
   statusDot: document.getElementById("status-dot"),
@@ -134,13 +134,14 @@ function handleViewReport() {
   const url = chrome.runtime.getURL(
     `report/report.html?tabId=${currentTab.id}`,
   );
+  console.log("tab id:", currentTab);
   chrome.tabs.create({ url });
 }
 
 async function init() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   currentTab = tab ?? null;
-
+  console.log("tab", tab);
   if (!currentTab?.id || !/^https?:/.test(currentTab.url ?? "")) {
     DOM.tabUrl.textContent = "No scannable page in this tab";
     DOM.startBtn.disabled = true;

@@ -4,7 +4,7 @@
 // map. Everything here is plain JSON — no SVG/DOM work happens in this
 // file, that's report.js's job.
 
-import { runInference, buildTechStackSummary } from "./inference-engine.js";
+import { runInference, buildTechStackSummary } from "./inference_engine.js";
 
 function getHostname(url) {
   try {

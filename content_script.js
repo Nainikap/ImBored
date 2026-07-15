@@ -122,16 +122,13 @@
     const vueScopedEl = document.querySelector("[class*='data=v='], [data-v-]");
     if (
       document.querySelector("[class*='data=v='], [data-v-]") ||
-      Array.from(
-        document
-          .querySelectorAll("*")
-          .slice(0, 500)
-          .some((el) => {
-            Array.from(el.attributes || []).some((a) =>
-              a.name.startsWith("data-v-"),
-            );
-          }),
-      )
+      Array.from(document.querySelectorAll("*"))
+        .slice(0, 500)
+        .some((el) => {
+          Array.from(el.attributes || []).some((a) =>
+            a.name.startsWith("data-v-"),
+          );
+        })
     ) {
       record("dom", "vue-scoped-style-attr", true);
     }
@@ -164,7 +161,7 @@
     const counts = Object.fromEntries(Object.keys(patterns).map((k) => [k, 0]));
     for (const cls of classes) {
       for (const [name, regex] of Object.entries(patterns)) {
-        if (regex.test(cls)) count[name]++;
+        if (regex.test(cls)) counts[name]++;
       }
     }
     record("css", "class-pattern-counts", {

@@ -16,203 +16,18 @@ import {
   clearEvidence,
   disposeSession,
   addExternalEvidence,
-} from "./debugger_collector";
+} from "./debugger_collector.js";
 import {
   createScan,
   updateScan,
   finalizeScanWithEvidence,
   getEvidenceByScanId,
   getLatestScanForTab,
-} from "../evidence_store";
+  getScanById,
+} from "../evidence_store.js";
 
 const DEFAULT_SCAN_DURATION_MS = 12000;
 const scans = new Map();
-
-function getScanState(tabId) {
-  return (
-    scans.get(tabId) ?? {
-      status: "idle",
-      scanId: null,
-      startedAt: 0,
-      timeoutId: null,
-      error: "",
-    }
-  );
-}
-function setScanState(tabId, patch) {
-  const next = { ...getScanState(tabId), ...patch };
-  scans.set(tabId, next);
-  return next;
-}
-
-async function startScan(tabId, durationMs = DEFAULT_SCAN_DURATION_MS) {
-  const current = getScanState(tabId);
-  if (current.status === "scanning") {
-    return { ok: true, alreadyScanning: true };
-  }
-  clearEvidence(tabId);
-  setScanState(tabId, { status: "scanning", startedAt: Date.now(), error: "" });
-
-  let tabUrl = "";
-  try {
-    const tab = await chrome.tabs.get(tabId);
-    tabUrl = tab?.url ?? "";
-  } catch {}
-
-  const scanId = await createScan(tabId, tabUrl);
-  setScanState(tabId, { scanId });
-
-  try {
-    const [injectionResult] = await chrome.scripting.executeScript({
-      target: { tabId },
-      world: "MAIN",
-      func: mainWorldProbe,
-    });
-    const records = mainWorldResultToRecords(injectionResult?.result);
-    for (const r of records)
-      addExternalEvidence(tabId, r.source, r.signal, r.value);
-  } catch (err) {
-    console.warn("[chrome-digger] MAIN-world probe failed:", err);
-  }
-
-  try {
-    await attachDebugger(tabId);
-    await chrome.scripting.executeScript({
-      target: { tabId },
-      file: ["content_script.js"],
-    });
-
-    const timeoutId = setTimeout(() => {
-      stopScan(tabId).catch((error) => {
-        console.error("[chrome-digger] auto-stop failed", error);
-      });
-    }, durationMs);
-    setScanState(tabId, { timeoutId });
-    return { ok: true };
-  } catch (error) {
-    setScanState(tabId, {
-      status: "error",
-      error: String(error?.message ?? error),
-    });
-    if (isAttached(tabId)) await detachDebugger(tabId);
-    return { ok: false, error: String(error?.message ?? error) };
-  }
-}
-
-function requestContentScriptStop(tabId, timeoutMs = 1500) {
-  return new Promise((resolve) => {
-    let settled = false;
-    const finish = () => {
-      if (settled) return;
-      settled = true;
-      resolve();
-    };
-
-    const timer = setTimeout(finish, timeoutMs);
-
-    try {
-      chrome.tabs.sendMessage(tabId, { type: "STOP_OBSERVING" }, () => {
-        void chrome.runtime.lastError;
-        clearTimeout(timer);
-        finish();
-      });
-    } catch {
-      clearTimeout(timer);
-      finish();
-    }
-  });
-}
-
-async function stopScan(tabId) {
-  const state = getScanState(tabId);
-  if (state.timeoutId) clearTimeout(state.timeoutId);
-
-  await requestContentScriptStop(tabId);
-
-  if (isAttached(tabId)) await detachDebugger(tabId);
-
-  const evidence = getEvidence(tabId);
-
-  if (state.scanId != null) {
-    await finalizeScanWithEvidence(state.scanId, evidence);
-  }
-
-  setScanState(tabId, { status: "done", timeoutId: null });
-
-  clearEvidence(tabId);
-  return { ok: true, evidenceCount: getEvidence(tabId).length };
-}
-
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  handleMessage(message, sender)
-    .then(sendResponse)
-    .catch((error) =>
-      sendResponse({ ok: false, error: String(error?.message ?? error) }),
-    );
-  return true;
-});
-
-async function handleMessage(message, sender) {
-  switch (message?.type) {
-    case "START_SCAN": {
-      const tabId = message?.tabId ?? sender.tab?.id;
-      if (tabId == null) return { ok: false, error: "No tabId provided" };
-      return startScan(tabId, message.durationMs);
-    }
-    case "STOP_SCAN": {
-      const tabId = message?.tabId ?? sender.tab?.id;
-      if (tabId == null) return { ok: false, error: "No tabId provided" };
-      return stopScan(tabId);
-    }
-    case "GET_SCAN_STATUS": {
-      const tabId = message.tabId;
-      const state = getScanState(tabId);
-      return {
-        ok: true,
-        status: state.status,
-        scanId: state.scanId,
-        startedAt: state.startedAt,
-        error: state.error,
-        evidenceCount: getEvidence(tabId).length,
-      };
-    }
-    case "GET_EVIDENCE": {
-      const evidence = getEvidence(tabId);
-
-      if (state.scanId != null) {
-        await finalizeScanWithEvidence(state.scanId, evidence);
-      }
-
-      setScanState(tabId, { status: "done", timeoutId: null });
-
-      clearEvidence(tabId);
-    }
-    case "DOM_EVIDENCE": {
-      const tabId = sender.tab?.id;
-      if (tabId == null) return { ok: false, error: "Missing sender tab" };
-      const records = Array.isArray(message.records) ? message.records : [];
-      for (const record of records) {
-        addExternalEvidence(
-          tabId,
-          record.source ?? "dom",
-          record.signal,
-          record.value,
-        );
-      }
-      return { ok: true, received: records.length };
-    }
-    default:
-      return { ok: false, error: `Unknown message type ${message?.type}` };
-  }
-}
-
-chrome.tabs.onRemoved.addListener((tabId) => {
-  const state = getScanState(tabId);
-  if (state.timeoutId) clearTimeout(state.timeoutId);
-  if (isAttached(tabId)) detachDebugger(tabId).catch((err) => {});
-  scans.delete(tabId);
-  disposeSession(tabId);
-});
 
 function mainWorldProbe() {
   const out = {};
@@ -280,6 +95,206 @@ function mainWorldProbe() {
 
   return out;
 }
+
+function getScanState(tabId) {
+  return (
+    scans.get(tabId) ?? {
+      status: "idle",
+      scanId: null,
+      startedAt: 0,
+      timeoutId: null,
+      error: "",
+    }
+  );
+}
+function setScanState(tabId, patch) {
+  const next = { ...getScanState(tabId), ...patch };
+  scans.set(tabId, next);
+  return next;
+}
+
+async function startScan(tabId, durationMs = DEFAULT_SCAN_DURATION_MS) {
+  const current = getScanState(tabId);
+  if (current.status === "scanning") {
+    return { ok: true, alreadyScanning: true };
+  }
+  clearEvidence(tabId);
+  setScanState(tabId, { status: "scanning", startedAt: Date.now(), error: "" });
+
+  let tabUrl = "";
+  try {
+    const tab = await chrome.tabs.get(tabId);
+    tabUrl = tab?.url ?? "";
+  } catch {}
+
+  const scanId = await createScan(tabId, tabUrl);
+  setScanState(tabId, { scanId });
+
+  try {
+    const [injectionResult] = await chrome.scripting.executeScript({
+      target: { tabId },
+      world: "MAIN",
+      func: mainWorldProbe,
+    });
+    const records = mainWorldResultToRecords(injectionResult?.result);
+    for (const r of records)
+      addExternalEvidence(tabId, r.source, r.signal, r.value);
+  } catch (err) {
+    console.warn("[chrome-digger] MAIN-world probe failed:", err);
+  }
+
+  try {
+    await attachDebugger(tabId);
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      files: ["content_script.js"],
+    });
+
+    const timeoutId = setTimeout(() => {
+      stopScan(tabId).catch((error) => {
+        console.error("[chrome-digger] auto-stop failed", error);
+      });
+    }, durationMs);
+    setScanState(tabId, { timeoutId });
+    return { ok: true };
+  } catch (error) {
+    setScanState(tabId, {
+      status: "error",
+      error: String(error?.message ?? error),
+    });
+    if (isAttached(tabId)) await detachDebugger(tabId);
+    return { ok: false, error: String(error?.message ?? error) };
+  }
+}
+
+function requestContentScriptStop(tabId, timeoutMs = 1500) {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
+
+    const timer = setTimeout(finish, timeoutMs);
+
+    try {
+      chrome.tabs.sendMessage(tabId, { type: "STOP_OBSERVING" }, () => {
+        void chrome.runtime.lastError;
+        clearTimeout(timer);
+        finish();
+      });
+    } catch {
+      clearTimeout(timer);
+      finish();
+    }
+  });
+}
+
+async function stopScan(tabId) {
+  const state = getScanState(tabId);
+  if (state.timeoutId) clearTimeout(state.timeoutId);
+
+  await requestContentScriptStop(tabId);
+
+  if (isAttached(tabId)) await detachDebugger(tabId);
+
+  const evidence = getEvidence(tabId);
+
+  if (state.scanId != null) {
+    await finalizeScanWithEvidence(state.scanId, evidence);
+  }
+
+  setScanState(tabId, { status: "done", timeoutId: null });
+
+  clearEvidence(tabId);
+  return { ok: true, evidenceCount: getEvidence(tabId).length };
+}
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  handleMessage(message, sender)
+    .then(sendResponse)
+    .catch((error) => {
+      (sendResponse({ ok: false, error: String(error?.message ?? error) }),
+        console.error(
+          "[chrome-digger] Error handling message",
+          message?.type,
+          error,
+        ));
+    });
+  return true;
+});
+
+async function handleMessage(message, sender) {
+  switch (message?.type) {
+    case "START_SCAN": {
+      const tabId = message?.tabId ?? sender.tab?.id;
+      if (tabId == null) return { ok: false, error: "No tabId provided" };
+      return startScan(tabId, message.durationMs);
+    }
+    case "STOP_SCAN": {
+      const tabId = message?.tabId ?? sender.tab?.id;
+      if (tabId == null) return { ok: false, error: "No tabId provided" };
+      return stopScan(tabId);
+    }
+    case "GET_SCAN_STATUS": {
+      const tabId = message.tabId;
+      const state = getScanState(tabId);
+      return {
+        ok: true,
+        status: state.status,
+        scanId: state.scanId,
+        startedAt: state.startedAt,
+        error: state.error,
+        evidenceCount: getEvidence(tabId).length,
+      };
+    }
+    case "GET_EVIDENCE": {
+      const tabId = message.tabId;
+      const state = getScanState(tabId);
+
+      let scanId = message.scanId ?? null;
+      if (scanId == null && message.tabId != null) {
+        const latest = await getLatestScanForTab(message.tabId);
+        scanId = latest?.id ?? null;
+      }
+      if (scanId == null) return { ok: false, error: "No scan found" };
+
+      const evidence = await getEvidenceByScanId(scanId);
+      await finalizeScanWithEvidence(state.scanId, evidence);
+      const scan = await getScanById(scanId);
+
+      return { ok: true, scanId, scan, evidence };
+      setScanState(tabId, { status: "done", timeoutId: null });
+
+      clearEvidence(tabId);
+    }
+    case "DOM_EVIDENCE": {
+      const tabId = sender.tab?.id;
+      if (tabId == null) return { ok: false, error: "Missing sender tab" };
+      const records = Array.isArray(message.records) ? message.records : [];
+      for (const record of records) {
+        addExternalEvidence(
+          tabId,
+          record.source ?? "dom",
+          record.signal,
+          record.value,
+        );
+      }
+      return { ok: true, received: records.length };
+    }
+    default:
+      return { ok: false, error: `Unknown message type ${message?.type}` };
+  }
+}
+
+chrome.tabs.onRemoved.addListener((tabId) => {
+  const state = getScanState(tabId);
+  if (state.timeoutId) clearTimeout(state.timeoutId);
+  if (isAttached(tabId)) detachDebugger(tabId).catch((err) => {});
+  scans.delete(tabId);
+  disposeSession(tabId);
+});
 
 /** Flattens the mainWorldProbe() result object into evidence records. */
 function mainWorldResultToRecords(result) {
